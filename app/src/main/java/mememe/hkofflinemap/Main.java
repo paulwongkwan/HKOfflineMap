@@ -5,9 +5,11 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
+import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -18,19 +20,25 @@ import com.yayandroid.locationmanager.LocationManager;
 
 import org.mapsforge.core.model.LatLong;
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory;
+import org.mapsforge.map.android.rendertheme.AssetsRenderTheme;
 import org.mapsforge.map.android.util.AndroidUtil;
 import org.mapsforge.map.android.view.MapView;
 import org.mapsforge.map.datastore.MapDataStore;
 import org.mapsforge.map.layer.cache.TileCache;
 import org.mapsforge.map.layer.renderer.TileRendererLayer;
 import org.mapsforge.map.reader.MapFile;
-import org.mapsforge.map.rendertheme.InternalRenderTheme;
+import org.mapsforge.map.rendertheme.XmlRenderTheme;
+import org.mapsforge.map.rendertheme.XmlRenderThemeMenuCallback;
+import org.mapsforge.map.rendertheme.XmlRenderThemeStyleLayer;
+import org.mapsforge.map.rendertheme.XmlRenderThemeStyleMenu;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Set;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
+import mememe.hkofflinemap.MapStyle.ElevateStyle;
 import mememe.hkofflinemap.Service.GPSSerivce;
 import mememe.hkofflinemap.Util.Code;
 import mememe.hkofflinemap.Util.FileUtil;
@@ -39,7 +47,7 @@ import mememe.hkofflinemap.Util.FileUtil;
  * An example full-screen activity that shows and hides the system UI (i.e.
  * status bar and navigation/system bar) with user interaction.
  */
-public class Main extends AppCompatActivity {
+public class Main extends AppCompatActivity implements XmlRenderThemeMenuCallback, SharedPreferences.OnSharedPreferenceChangeListener {
     /**
      * Whether or not the system UI should be auto-hidden after
      * {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
@@ -66,6 +74,8 @@ public class Main extends AppCompatActivity {
     public MapView mapView;
     public TileCache tileCache;
     public TileRendererLayer tileRendererLayer;
+    public XmlRenderThemeStyleMenu renderThemeStyleMenu;
+    protected SharedPreferences sharedPreferences;
 
     /*
     GPS service related
@@ -129,6 +139,7 @@ public class Main extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        createSharedPreferences();
 
         ButterKnife.bind(this);
 
@@ -172,17 +183,16 @@ public class Main extends AppCompatActivity {
         mapView.setClickable(true);
         mapView.getMapScaleBar().setVisible(true);
         mapView.setBuiltInZoomControls(true);
-        mapView.setZoomLevelMin((byte) 10);
+        mapView.setZoomLevelMin((byte) 0);
         mapView.setZoomLevelMax((byte) 20);
 
         tileCache = AndroidUtil.createTileCache(this, "mapcache", mapView.getModel().displayModel.getTileSize(), 1f, mapView.getModel().frameBufferModel.getOverdrawFactor());
 
         MapDataStore mapDataStore = new MapFile(new File(getFilesDir(), "hkmap.map"));
         tileRendererLayer = new TileRendererLayer(tileCache, mapDataStore, mapView.getModel().mapViewPosition, AndroidGraphicFactory.INSTANCE);
-        tileRendererLayer.setXmlRenderTheme(InternalRenderTheme.DEFAULT);
+        tileRendererLayer.setXmlRenderTheme(new ElevateStyle(this));
 
         mapView.getLayerManager().getLayers().add(tileRendererLayer);
-
         mapView.setCenter(new LatLong(22.282858, 114.139127));
         mapView.setZoomLevel((byte) 12);
     }
@@ -289,4 +299,43 @@ public class Main extends AppCompatActivity {
         }
     };
 
+    @Override
+    public Set<String> getCategories(XmlRenderThemeStyleMenu menuStyle) {
+        renderThemeStyleMenu = menuStyle;
+        String id = sharedPreferences.getString(renderThemeStyleMenu.getId(),
+                renderThemeStyleMenu.getDefaultValue());
+
+//        XmlRenderThemeStyleLayer baseLayer = this.renderThemeStyleMenu.getLayer(id);
+        XmlRenderThemeStyleLayer baseLayer = this.renderThemeStyleMenu.getLayer("elv-hiking");
+        if (baseLayer == null) {
+            return null;
+        }
+        Set<String> result = baseLayer.getCategories();
+
+        // add the categories from overlays that are enabled
+        for (XmlRenderThemeStyleLayer overlay : baseLayer.getOverlays()) {
+            if (this.sharedPreferences.getBoolean(overlay.getId(), overlay.isEnabled())) {
+                result.addAll(overlay.getCategories());
+            }
+        }
+
+        return result;
+    }
+
+    protected void createSharedPreferences() {
+        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+
+        // problem that the first call to getAll() returns nothing, apparently the
+        // following two calls have to be made to read all the values correctly
+        // http://stackoverflow.com/questions/9310479/how-to-iterate-through-all-keys-of-shared-preferences
+        sharedPreferences.edit().clear();
+        PreferenceManager.setDefaultValues(this, R.xml.preferences, true);
+
+        sharedPreferences.registerOnSharedPreferenceChangeListener(this);
+    }
+
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+        AndroidUtil.restartActivity(this);
+    }
 }

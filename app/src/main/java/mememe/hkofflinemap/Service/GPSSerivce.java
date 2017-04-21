@@ -8,6 +8,8 @@ import android.util.Log;
 
 import com.yayandroid.locationmanager.base.LocationBaseService;
 import com.yayandroid.locationmanager.configuration.Configurations;
+import com.yayandroid.locationmanager.configuration.DefaultProviderConfiguration;
+import com.yayandroid.locationmanager.configuration.GooglePlayServicesConfiguration;
 import com.yayandroid.locationmanager.configuration.LocationConfiguration;
 
 import mememe.hkofflinemap.Util.Code;
@@ -21,7 +23,12 @@ public class GPSSerivce extends LocationBaseService {
 
     @Override
     public LocationConfiguration getLocationConfiguration() {
-        return Configurations.silentConfiguration(false);
+        return new LocationConfiguration.Builder()
+                .keepTracking(true)
+                .useGooglePlayServices(new GooglePlayServicesConfiguration.Builder().askForSettingsApi(false).build())
+                .useDefaultProviders(new DefaultProviderConfiguration.Builder()
+                        .requiredTimeInterval(5000).build())
+                .build();
     }
 
     @Nullable
