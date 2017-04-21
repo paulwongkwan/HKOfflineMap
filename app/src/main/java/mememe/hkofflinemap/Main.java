@@ -1,33 +1,39 @@
 package mememe.hkofflinemap;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 
-import com.yayandroid.locationmanager.LocationManager;
+import com.google.android.gms.location.DetectedActivity;
 
+import org.mapsforge.core.graphics.Bitmap;
 import org.mapsforge.core.model.LatLong;
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory;
-import org.mapsforge.map.android.rendertheme.AssetsRenderTheme;
 import org.mapsforge.map.android.util.AndroidUtil;
 import org.mapsforge.map.android.view.MapView;
 import org.mapsforge.map.datastore.MapDataStore;
 import org.mapsforge.map.layer.cache.TileCache;
 import org.mapsforge.map.layer.renderer.TileRendererLayer;
 import org.mapsforge.map.reader.MapFile;
-import org.mapsforge.map.rendertheme.XmlRenderTheme;
 import org.mapsforge.map.rendertheme.XmlRenderThemeMenuCallback;
 import org.mapsforge.map.rendertheme.XmlRenderThemeStyleLayer;
 import org.mapsforge.map.rendertheme.XmlRenderThemeStyleMenu;
@@ -38,8 +44,14 @@ import java.util.Set;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
+import io.nlopez.smartlocation.OnLocationUpdatedListener;
+import io.nlopez.smartlocation.SmartLocation;
+import io.nlopez.smartlocation.location.LocationProvider;
+import io.nlopez.smartlocation.location.config.LocationAccuracy;
+import io.nlopez.smartlocation.location.config.LocationParams;
+import io.nlopez.smartlocation.location.providers.LocationBasedOnActivityProvider;
+import io.nlopez.smartlocation.location.providers.LocationGooglePlayServicesProvider;
 import mememe.hkofflinemap.MapStyle.ElevateStyle;
-import mememe.hkofflinemap.Service.GPSSerivce;
 import mememe.hkofflinemap.Util.Code;
 import mememe.hkofflinemap.Util.FileUtil;
 
@@ -47,7 +59,7 @@ import mememe.hkofflinemap.Util.FileUtil;
  * An example full-screen activity that shows and hides the system UI (i.e.
  * status bar and navigation/system bar) with user interaction.
  */
-public class Main extends AppCompatActivity implements XmlRenderThemeMenuCallback, SharedPreferences.OnSharedPreferenceChangeListener {
+public class Main extends AppCompatActivity implements OnLocationUpdatedListener, XmlRenderThemeMenuCallback, SharedPreferences.OnSharedPreferenceChangeListener {
     /**
      * Whether or not the system UI should be auto-hidden after
      * {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
@@ -59,6 +71,8 @@ public class Main extends AppCompatActivity implements XmlRenderThemeMenuCallbac
      * user interaction before hiding the system UI.
      */
     private static final int AUTO_HIDE_DELAY_MILLIS = 3000;
+
+    private static final int LOCATION_PERMISSION_ID = 1001;
 
     /**
      * Some older devices needs a small delay between UI widget updates
@@ -80,8 +94,7 @@ public class Main extends AppCompatActivity implements XmlRenderThemeMenuCallbac
     /*
     GPS service related
      */
-    private IntentFilter intentFilter;
-
+    LocationProvider provider;
     private final Runnable mHidePart2Runnable = new Runnable() {
         @SuppressLint("InlinedApi")
         @Override
@@ -143,8 +156,6 @@ public class Main extends AppCompatActivity implements XmlRenderThemeMenuCallbac
 
         ButterKnife.bind(this);
 
-        LocationManager.enableLog(true);
-
         mVisible = true;
 
         // Set up the user interaction to manually show or hide the system UI.
@@ -162,7 +173,11 @@ public class Main extends AppCompatActivity implements XmlRenderThemeMenuCallbac
 
         AndroidGraphicFactory.createInstance(this.getApplication());
         setupMap();
-        startService(new Intent(this, GPSSerivce.class));
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_ID);
+            return;
+        }
     }
 
     private void copyMapToInternal(){
@@ -192,8 +207,15 @@ public class Main extends AppCompatActivity implements XmlRenderThemeMenuCallbac
         tileRendererLayer = new TileRendererLayer(tileCache, mapDataStore, mapView.getModel().mapViewPosition, AndroidGraphicFactory.INSTANCE);
         tileRendererLayer.setXmlRenderTheme(new ElevateStyle(this));
 
+        Drawable drawable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP ? getDrawable(R.drawable.gps_fixed) : getResources().getDrawable(R.drawable.gps_fixed);
+        Bitmap bitmap = AndroidGraphicFactory.convertToBitmap(drawable);
+        MyLocationOverlay myLocationOverlay = new MyLocationOverlay(this, mapView, bitmap);
+        myLocationOverlay.enableMyLocation(true);
+        mapView.getOverlays().add(myLocationOverlay);
+
         mapView.getLayerManager().getLayers().add(tileRendererLayer);
-        mapView.setCenter(new LatLong(22.282858, 114.139127));
+        mapView.setCenter(mapDataStore.startPosition());
+//        mapView.setCenter(new LatLong(22.282858, 114.139127));
         mapView.setZoomLevel((byte) 12);
     }
 
@@ -202,6 +224,47 @@ public class Main extends AppCompatActivity implements XmlRenderThemeMenuCallbac
         this.mapView.destroyAll();
         AndroidGraphicFactory.clearResourceMemoryCache();
         super.onDestroy();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        startLocation();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        stopLocation();
+
+    }
+
+    private void startLocation() {
+
+        provider = new LocationGooglePlayServicesProvider();
+
+        SmartLocation smartLocation = new SmartLocation.Builder(this).logging(true).build();
+        LocationParams locationParams = new LocationParams.Builder().setAccuracy(LocationAccuracy.HIGH).setDistance(0).setInterval(1000).build();
+
+        smartLocation.location(provider).config(locationParams).continuous().start(this);
+//        smartLocation.activity().start(this);
+    }
+
+    private void stopLocation() {
+        SmartLocation.with(this).location().stop();
+
+        SmartLocation.with(this).activity().stop();
+
+        SmartLocation.with(this).geofencing().stop();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == LOCATION_PERMISSION_ID && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            startLocation();
+        }
     }
 
     @Override
@@ -258,48 +321,6 @@ public class Main extends AppCompatActivity implements XmlRenderThemeMenuCallbac
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        registerReceiver(broadcastReceiver, getIntentFilter());
-    }
-
-    private IntentFilter getIntentFilter() {
-        if (intentFilter == null) {
-            intentFilter = new IntentFilter();
-            intentFilter.addAction(GPSSerivce.ACTION_LOCATION_CHANGED);
-//            intentFilter.addAction(SampleService.ACTION_LOCATION_FAILED);
-//            intentFilter.addAction(SampleService.ACTION_PROCESS_CHANGED);
-        }
-        return intentFilter;
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        unregisterReceiver(broadcastReceiver);
-    }
-
-    private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            if (action.equals(GPSSerivce.ACTION_LOCATION_CHANGED)) {
-                Location newLoc = intent.getParcelableExtra(Code.LOCATION_UPDATE);
-                Log.e("Current Location", "Lat: " + newLoc.getLatitude() + "; Long: " + newLoc.getLongitude());
-                mapView.setCenter(new LatLong(newLoc.getLatitude(), newLoc.getLongitude()));
-            }
-//            } else if (action.equals(SampleService.ACTION_LOCATION_FAILED)) {
-//                //noinspection WrongConstant
-//                samplePresenter.onLocationFailed(intent.getIntExtra(SampleService.EXTRA_FAIL_TYPE, FailType.UNKNOWN));
-//            } else if (action.equals(SampleService.ACTION_PROCESS_CHANGED)) {
-//                //noinspection WrongConstant
-//                samplePresenter.onProcessTypeChanged(intent.getIntExtra(SampleService.EXTRA_PROCESS_TYPE,
-//                        ProcessType.GETTING_LOCATION_FROM_CUSTOM_PROVIDER));
-//            }
-        }
-    };
-
-    @Override
     public Set<String> getCategories(XmlRenderThemeStyleMenu menuStyle) {
         renderThemeStyleMenu = menuStyle;
         String id = sharedPreferences.getString(renderThemeStyleMenu.getId(),
@@ -337,5 +358,10 @@ public class Main extends AppCompatActivity implements XmlRenderThemeMenuCallbac
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
         AndroidUtil.restartActivity(this);
+    }
+
+    @Override
+    public void onLocationUpdated(Location location) {
+        mapView.setCenter(new LatLong(location.getLatitude(), location.getLongitude()));
     }
 }

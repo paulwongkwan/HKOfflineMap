@@ -45,6 +45,5 @@ dependencies {
     }
     compile 'com.jakewharton:butterknife:8.5.1'
     annotationProcessor 'com.jakewharton:butterknife-compiler:8.5.1'
-    compile 'com.yayandroid:LocationManager:2.0.1'
-
+    compile 'io.nlopez.smartlocation:library:3.3.1'
 }
