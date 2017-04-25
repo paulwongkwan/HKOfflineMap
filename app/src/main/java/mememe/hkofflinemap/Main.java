@@ -2,15 +2,9 @@ package mememe.hkofflinemap;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.graphics.drawable.Drawable;
 import android.location.Location;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
@@ -19,11 +13,8 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
-
-import com.google.android.gms.location.DetectedActivity;
 
 import org.mapsforge.core.graphics.Bitmap;
 import org.mapsforge.core.model.LatLong;
@@ -32,6 +23,7 @@ import org.mapsforge.map.android.util.AndroidUtil;
 import org.mapsforge.map.android.view.MapView;
 import org.mapsforge.map.datastore.MapDataStore;
 import org.mapsforge.map.layer.cache.TileCache;
+import org.mapsforge.map.layer.overlay.Marker;
 import org.mapsforge.map.layer.renderer.TileRendererLayer;
 import org.mapsforge.map.reader.MapFile;
 import org.mapsforge.map.rendertheme.XmlRenderThemeMenuCallback;
@@ -49,11 +41,11 @@ import io.nlopez.smartlocation.SmartLocation;
 import io.nlopez.smartlocation.location.LocationProvider;
 import io.nlopez.smartlocation.location.config.LocationAccuracy;
 import io.nlopez.smartlocation.location.config.LocationParams;
-import io.nlopez.smartlocation.location.providers.LocationBasedOnActivityProvider;
 import io.nlopez.smartlocation.location.providers.LocationGooglePlayServicesProvider;
 import mememe.hkofflinemap.MapStyle.ElevateStyle;
-import mememe.hkofflinemap.Util.Code;
+import mememe.hkofflinemap.Util.BitmapUtil;
 import mememe.hkofflinemap.Util.FileUtil;
+import mememe.hkofflinemap.Util.SharedPreference;
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e.
@@ -82,6 +74,11 @@ public class Main extends AppCompatActivity implements OnLocationUpdatedListener
     private final Handler mHideHandler = new Handler();
 
     /*
+    Map Display Setting
+     */
+    private final float gpsMarkerDp = 20;
+
+    /*
     Setup map related
      */
     @BindView(R.id.mainMapView)
@@ -94,6 +91,7 @@ public class Main extends AppCompatActivity implements OnLocationUpdatedListener
     /*
     GPS service related
      */
+    Marker GPSmarker;
     LocationProvider provider;
     private final Runnable mHidePart2Runnable = new Runnable() {
         @SuppressLint("InlinedApi")
@@ -180,10 +178,10 @@ public class Main extends AppCompatActivity implements OnLocationUpdatedListener
         }
     }
 
-    private void copyMapToInternal(){
+    private void copyMapToInternal() {
         File file = new File(getFilesDir(), "hkmap.map");
 
-        if(!file.exists()) {
+        if (!file.exists()) {
             try {
                 FileUtil.createFileFromInputStream(getAssets().open("hkmap.map"), file);
             } catch (IOException e) {
@@ -192,7 +190,7 @@ public class Main extends AppCompatActivity implements OnLocationUpdatedListener
         }
     }
 
-    private void setupMap(){
+    private void setupMap() {
         copyMapToInternal();
 
         mapView.setClickable(true);
@@ -207,15 +205,13 @@ public class Main extends AppCompatActivity implements OnLocationUpdatedListener
         tileRendererLayer = new TileRendererLayer(tileCache, mapDataStore, mapView.getModel().mapViewPosition, AndroidGraphicFactory.INSTANCE);
         tileRendererLayer.setXmlRenderTheme(new ElevateStyle(this));
 
-        Drawable drawable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP ? getDrawable(R.drawable.gps_fixed) : getResources().getDrawable(R.drawable.gps_fixed);
-        Bitmap bitmap = AndroidGraphicFactory.convertToBitmap(drawable);
-        MyLocationOverlay myLocationOverlay = new MyLocationOverlay(this, mapView, bitmap);
-        myLocationOverlay.enableMyLocation(true);
-        mapView.getOverlays().add(myLocationOverlay);
+        int px = BitmapUtil.convertDpToPixel(gpsMarkerDp, Main.this);
+        Bitmap bitmap = BitmapUtil.decodeSampledBitmapFromResource(getResources(), R.drawable.gps_fixed, px, px);
+        GPSmarker = new Marker(mapDataStore.startPosition(), bitmap, 0, 0);
 
         mapView.getLayerManager().getLayers().add(tileRendererLayer);
+        mapView.getLayerManager().getLayers().add(GPSmarker);
         mapView.setCenter(mapDataStore.startPosition());
-//        mapView.setCenter(new LatLong(22.282858, 114.139127));
         mapView.setZoomLevel((byte) 12);
     }
 
@@ -362,6 +358,8 @@ public class Main extends AppCompatActivity implements OnLocationUpdatedListener
 
     @Override
     public void onLocationUpdated(Location location) {
-        mapView.setCenter(new LatLong(location.getLatitude(), location.getLongitude()));
+        GPSmarker.setLatLong(new LatLong(location.getLatitude(), location.getLongitude()));
+        if (SharedPreference.getMapCentreToGps(Main.this))
+            mapView.setCenter(new LatLong(location.getLatitude(), location.getLongitude()));
     }
 }
