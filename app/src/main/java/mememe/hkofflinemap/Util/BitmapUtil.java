@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.BitmapFactory;
 import android.util.DisplayMetrics;
+import android.util.TypedValue;
 
 import org.mapsforge.core.graphics.Bitmap;
 import org.mapsforge.map.android.graphics.AndroidBitmap;
@@ -54,30 +55,8 @@ public class BitmapUtil {
     }
 
     public static int convertDpToPixel(float dp, Context context){
-        int px = (int) (dp * getDensity(context));
+        int px = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, context.getResources().getDisplayMetrics());
         return px;
-    }
-    /**
-     * Covert px to dp
-     * @param px
-     * @param context
-     * @return dp
-     */
-    public static int convertPixelToDp(float px, Context context){
-        int dp = (int) (px / getDensity(context));
-        return dp;
-    }
-    /**
-     * 取得螢幕密度
-     * 120dpi = 0.75
-     * 160dpi = 1 (default)
-     * 240dpi = 1.5
-     * @param context
-     * @return
-     */
-    public static float getDensity(Context context){
-        DisplayMetrics metrics = context.getResources().getDisplayMetrics();
-        return metrics.density;
     }
 
 }

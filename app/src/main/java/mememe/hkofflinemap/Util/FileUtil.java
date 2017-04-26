@@ -11,9 +11,12 @@ import java.io.OutputStream;
  */
 
 public class FileUtil {
+
     static public Boolean createFileFromInputStream(InputStream inputStream, File target) {
 
         try{
+            if(!target.getParentFile().exists()) target.getParentFile().mkdirs();
+
             OutputStream outputStream = new FileOutputStream(target);
             byte buffer[] = new byte[1024];
             int length = 0;
