@@ -2,10 +2,8 @@ package mememe.hkofflinemap.MapStyle;
 
 import org.mapsforge.map.rendertheme.XmlRenderTheme;
 import org.mapsforge.map.rendertheme.XmlRenderThemeMenuCallback;
-import org.mapsforge.map.rendertheme.XmlRenderThemeStyleMenu;
 
 import java.io.InputStream;
-import java.util.Set;
 
 /**
  * Created by Paul Wong on 17/04/21.
@@ -38,5 +36,10 @@ public class ElevateStyle implements XmlRenderTheme {
     @Override
     public InputStream getRenderThemeAsStream() {
         return getClass().getResourceAsStream(this.path);
+    }
+
+    @Override
+    public void setMenuCallback(XmlRenderThemeMenuCallback menuCallback) {
+
     }
 }
