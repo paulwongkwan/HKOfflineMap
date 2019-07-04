@@ -3,6 +3,7 @@ package mememe.hkofflinemap;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
+import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -16,17 +17,19 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
-import androidx.annotation.NonNull;
-import androidx.core.app.ActivityCompat;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.ViewPropertyAnimatorListener;
-import androidx.appcompat.app.ActionBar;
-import androidx.appcompat.app.AppCompatActivity;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.ViewPropertyAnimatorListener;
 
 import org.mapsforge.core.graphics.Bitmap;
 import org.mapsforge.core.model.LatLong;
@@ -36,6 +39,9 @@ import org.mapsforge.map.android.util.AndroidUtil;
 import org.mapsforge.map.android.view.MapView;
 import org.mapsforge.map.datastore.MapDataStore;
 import org.mapsforge.map.layer.cache.TileCache;
+import org.mapsforge.map.layer.hills.HillsRenderConfig;
+import org.mapsforge.map.layer.hills.MemoryCachingHgtReaderTileSource;
+import org.mapsforge.map.layer.hills.SimpleShadingAlgorithm;
 import org.mapsforge.map.layer.renderer.TileRendererLayer;
 import org.mapsforge.map.reader.MapFile;
 import org.mapsforge.map.rendertheme.XmlRenderThemeMenuCallback;
@@ -120,6 +126,10 @@ public class Main extends AppCompatActivity implements SensorEventListener, OnLo
     GPSMarker GPSmarker;
     GPSMarker viewMarker;
     LocationProvider provider;
+
+    private File demFolder;
+    private HillsRenderConfig hillsConfig;
+
     private final Runnable mHidePart2Runnable = new Runnable() {
         @SuppressLint("InlinedApi")
         @Override
@@ -208,8 +218,12 @@ public class Main extends AppCompatActivity implements SensorEventListener, OnLo
                 for (File child : mapfolder.listFiles()) child.delete();
             }
 
+            demFolder.mkdirs();
+
             try {
                 FileUtil.createFileFromInputStream(getAssets().open("hkmap.map"), file);
+                FileUtil.createFileFromInputStream(getAssets().open("N22E114.hgt"), new File(demFolder, "N22E114.hgt"));
+                FileUtil.createFileFromInputStream(getAssets().open("N22E113.hgt"), new File(demFolder, "N22E113.hgt"));
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -228,6 +242,7 @@ public class Main extends AppCompatActivity implements SensorEventListener, OnLo
             }
 
             mapfolder = new File(getFilesDir(), "maps");
+            demFolder = new File(mapfolder, "dem");
             mapfile = new File(mapfolder, "hkmap" + verCode + ".map");
         }
 
@@ -236,6 +251,7 @@ public class Main extends AppCompatActivity implements SensorEventListener, OnLo
 
     private void setupMap() {
         copyMapToInternal();
+        HillshadingMapViewer();
 
         mapView.setClickable(true);
         mapView.getMapScaleBar().setVisible(true);
@@ -246,8 +262,7 @@ public class Main extends AppCompatActivity implements SensorEventListener, OnLo
         tileCache = AndroidUtil.createTileCache(this, "mapcache", mapView.getModel().displayModel.getTileSize(), 1f, mapView.getModel().frameBufferModel.getOverdrawFactor());
 
         MapDataStore mapDataStore = new MapFile(mapfile);
-        tileRendererLayer = new TileRendererLayer(tileCache, mapDataStore, mapView.getModel().mapViewPosition, AndroidGraphicFactory.INSTANCE);
-        tileRendererLayer.setXmlRenderTheme(new ElevateStyle(this));
+        tileRendererLayer = AndroidUtil.createTileRendererLayer(tileCache, mapView.getModel().mapViewPosition, mapDataStore, new ElevateStyle(this), false, true, false, hillsConfig);
 
         Bitmap bitmap = new AndroidBitmap(BitmapFactory.decodeResource(getResources(), R.drawable.gps_fixed));
         GPSmarker = new GPSMarker(mapDataStore.startPosition(), bitmap, 0, 0);
@@ -260,6 +275,36 @@ public class Main extends AppCompatActivity implements SensorEventListener, OnLo
 //        mapView.getLayerManager().getLayers().add(viewMarker);
         mapView.setCenter(mapDataStore.startPosition());
         mapView.setZoomLevel((byte) 16);
+    }
+
+    public void HillshadingMapViewer() {
+        if (demFolder == null)
+            demFolder = new File(mapfolder, "dem");
+
+        if (!(demFolder.exists() && demFolder.isDirectory() && demFolder.canRead() && demFolder.listFiles().length > 0)) {
+            hillsConfig = null;
+        } else {
+            MemoryCachingHgtReaderTileSource hillTileSource = new MemoryCachingHgtReaderTileSource(demFolder, new SimpleShadingAlgorithm(), AndroidGraphicFactory.INSTANCE);
+
+            hillTileSource.setEnableInterpolationOverlap(true);
+
+            hillsConfig = new HillsRenderConfig(hillTileSource);
+
+            hillsConfig.indexOnThread();
+        }
+
+        if (hillsConfig == null) {
+            AlertDialog.Builder alert = new AlertDialog.Builder(this);
+            alert.setTitle("Hillshading demo needs SRTM hgt files");
+            alert.setMessage("Currently looking in " + demFolder + "\noverride in " + this.getClass().getCanonicalName());
+            alert.setOnCancelListener(new DialogInterface.OnCancelListener() {
+                @Override
+                public void onCancel(DialogInterface dialogInterface) {
+                    finish();
+                }
+            });
+            alert.show();
+        }
     }
 
     @Override
@@ -500,13 +545,13 @@ public class Main extends AppCompatActivity implements SensorEventListener, OnLo
             mGeomagnetic = event.values;
 
         if (mGravity != null && mGeomagnetic != null) {
-            float R[] = new float[9];
-            float I[] = new float[9];
+            float[] R = new float[9];
+            float[] I = new float[9];
 
             if (SensorManager.getRotationMatrix(R, I, mGravity, mGeomagnetic)) {
 
                 // orientation contains azimut, pitch and roll
-                float orientation[] = new float[3];
+                float[] orientation = new float[3];
                 SensorManager.getOrientation(R, orientation);
 
                 float azimut = orientation[0];

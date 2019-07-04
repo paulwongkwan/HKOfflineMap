@@ -40,6 +40,5 @@ public class ElevateStyle implements XmlRenderTheme {
 
     @Override
     public void setMenuCallback(XmlRenderThemeMenuCallback menuCallback) {
-
     }
 }
