@@ -1,4 +1,4 @@
-package mememe.hkofflinemap;
+package mememe.omaphk;
 
 import org.junit.Test;
 

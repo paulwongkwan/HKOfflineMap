@@ -1,4 +1,4 @@
-package mememe.hkofflinemap;
+package mememe.omaphk;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
@@ -39,6 +39,7 @@ import org.mapsforge.map.android.util.AndroidUtil;
 import org.mapsforge.map.android.view.MapView;
 import org.mapsforge.map.datastore.MapDataStore;
 import org.mapsforge.map.layer.cache.TileCache;
+import org.mapsforge.map.layer.hills.DiffuseLightShadingAlgorithm;
 import org.mapsforge.map.layer.hills.HillsRenderConfig;
 import org.mapsforge.map.layer.hills.MemoryCachingHgtReaderTileSource;
 import org.mapsforge.map.layer.hills.SimpleShadingAlgorithm;
@@ -62,10 +63,10 @@ import io.nlopez.smartlocation.location.LocationProvider;
 import io.nlopez.smartlocation.location.config.LocationAccuracy;
 import io.nlopez.smartlocation.location.config.LocationParams;
 import io.nlopez.smartlocation.location.providers.LocationGooglePlayServicesProvider;
-import mememe.hkofflinemap.Layer.GPSMarker;
-import mememe.hkofflinemap.MapStyle.ElevateStyle;
-import mememe.hkofflinemap.Util.FileUtil;
-import mememe.hkofflinemap.Util.SharedPreference;
+import mememe.omaphk.Layer.GPSMarker;
+import mememe.omaphk.MapStyle.ElevateStyle;
+import mememe.omaphk.Util.FileUtil;
+import mememe.omaphk.Util.SharedPreference;
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e.
@@ -251,7 +252,7 @@ public class Main extends AppCompatActivity implements SensorEventListener, OnLo
 
     private void setupMap() {
         copyMapToInternal();
-        HillshadingMapViewer();
+        HillshadingConfigSetup();
 
         mapView.setClickable(true);
         mapView.getMapScaleBar().setVisible(true);
@@ -277,7 +278,7 @@ public class Main extends AppCompatActivity implements SensorEventListener, OnLo
         mapView.setZoomLevel((byte) 16);
     }
 
-    public void HillshadingMapViewer() {
+    public void HillshadingConfigSetup() {
         if (demFolder == null)
             demFolder = new File(mapfolder, "dem");
 
@@ -287,6 +288,7 @@ public class Main extends AppCompatActivity implements SensorEventListener, OnLo
             MemoryCachingHgtReaderTileSource hillTileSource = new MemoryCachingHgtReaderTileSource(demFolder, new SimpleShadingAlgorithm(), AndroidGraphicFactory.INSTANCE);
 
             hillTileSource.setEnableInterpolationOverlap(true);
+            hillTileSource.setShadingAlgorithm(new DiffuseLightShadingAlgorithm());
 
             hillsConfig = new HillsRenderConfig(hillTileSource);
 

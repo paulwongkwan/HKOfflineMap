@@ -1,4 +1,4 @@
-package mememe.hkofflinemap.Util;
+package mememe.omaphk.Util;
 
 import android.content.Context;
 import android.content.SharedPreferences;

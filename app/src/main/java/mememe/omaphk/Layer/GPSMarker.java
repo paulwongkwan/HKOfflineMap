@@ -1,4 +1,4 @@
-package mememe.hkofflinemap.Layer;
+package mememe.omaphk.Layer;
 
 import org.mapsforge.core.graphics.Bitmap;
 import org.mapsforge.core.graphics.Canvas;

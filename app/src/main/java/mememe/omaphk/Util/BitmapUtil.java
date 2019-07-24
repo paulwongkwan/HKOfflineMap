@@ -1,9 +1,8 @@
-package mememe.hkofflinemap.Util;
+package mememe.omaphk.Util;
 
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.BitmapFactory;
-import android.util.DisplayMetrics;
 import android.util.TypedValue;
 
 import org.mapsforge.core.graphics.Bitmap;

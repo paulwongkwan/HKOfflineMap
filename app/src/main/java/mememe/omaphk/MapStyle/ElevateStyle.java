@@ -1,4 +1,4 @@
-package mememe.hkofflinemap.MapStyle;
+package mememe.omaphk.MapStyle;
 
 import org.mapsforge.map.rendertheme.XmlRenderTheme;
 import org.mapsforge.map.rendertheme.XmlRenderThemeMenuCallback;

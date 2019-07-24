@@ -1,4 +1,4 @@
-package mememe.hkofflinemap.Util;
+package mememe.omaphk.Util;
 
 /**
  * Created by Paul Wong on 17/04/19.
