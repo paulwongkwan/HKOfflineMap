@@ -2,7 +2,7 @@ apply plugin: 'com.android.application'
 
 android {
     compileSdkVersion 29
-    buildToolsVersion '29.0.0 rc1'
+    buildToolsVersion '29.0.3'
     defaultConfig {
         applicationId "mememe.omaphk"
         minSdkVersion 22
@@ -28,23 +28,23 @@ dependencies {
     androidTestImplementation('androidx.test.espresso:espresso-core:3.1.0', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
-    implementation 'androidx.appcompat:appcompat:1.0.2'
+    implementation 'androidx.appcompat:appcompat:1.3.0'
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
-    implementation 'org.mapsforge:mapsforge-core:0.11.0'
-    implementation 'org.mapsforge:mapsforge-map:0.11.0'
-    implementation 'org.mapsforge:mapsforge-map-reader:0.11.0'
-    implementation 'org.mapsforge:mapsforge-themes:0.11.0'
-    implementation 'org.mapsforge:mapsforge-poi:0.11.0'
-    implementation 'org.mapsforge:mapsforge-poi-android:0.11.0'
-    implementation 'org.mapsforge:sqlite-android:0.11.0'
-    implementation 'org.mapsforge:sqlite-android:0.11.0:natives-armeabi-v7a'
-    implementation 'org.mapsforge:sqlite-android:0.11.0:natives-arm64-v8a'
-    implementation 'org.mapsforge:sqlite-android:0.11.0:natives-x86'
-    implementation 'org.mapsforge:sqlite-android:0.11.0:natives-x86_64'
+    implementation 'org.mapsforge:mapsforge-core:0.15.0'
+    implementation 'org.mapsforge:mapsforge-map:0.15.0'
+    implementation 'org.mapsforge:mapsforge-map-reader:0.15.0'
+    implementation 'org.mapsforge:mapsforge-themes:0.15.0'
+    implementation 'org.mapsforge:mapsforge-poi:0.15.0'
+    implementation 'org.mapsforge:mapsforge-poi-android:0.15.0'
+    implementation 'org.mapsforge:sqlite-android:0.15.0'
+    implementation 'org.mapsforge:sqlite-android:0.15.0:natives-armeabi-v7a'
+    implementation 'org.mapsforge:sqlite-android:0.15.0:natives-arm64-v8a'
+    implementation 'org.mapsforge:sqlite-android:0.15.0:natives-x86'
+    implementation 'org.mapsforge:sqlite-android:0.15.0:natives-x86_64'
     implementation 'net.sf.kxml:kxml2:2.3.0'
-    implementation 'org.mapsforge:mapsforge-map-android:0.11.0'
-    implementation 'com.caverock:androidsvg:1.3'
-    implementation 'com.jakewharton:butterknife:10.1.0'
-    annotationProcessor 'com.jakewharton:butterknife-compiler:10.1.0'
+    implementation 'org.mapsforge:mapsforge-map-android:0.15.0'
+    implementation 'com.caverock:androidsvg:1.4'
+    implementation 'com.jakewharton:butterknife:10.2.3'
+    annotationProcessor 'com.jakewharton:butterknife-compiler:10.2.3'
     implementation 'io.nlopez.smartlocation:library:3.3.3'
 }

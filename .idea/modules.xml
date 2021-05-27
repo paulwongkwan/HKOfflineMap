@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/HKOfflineMap.iml" filepath="$PROJECT_DIR$/HKOfflineMap.iml" />
-      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/HKOfflineMap.iml" filepath="$PROJECT_DIR$/.idea/modules/HKOfflineMap.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/HKOfflineMap.app.iml" filepath="$PROJECT_DIR$/.idea/modules/app/HKOfflineMap.app.iml" />
     </modules>
   </component>
 </project>
